@@ -73,12 +73,6 @@ total_penjualan_harian = penjualan_harian["total"].sum()
 st.info(f"💸 Total Modal pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_modal_harian:,.0f}")
 st.success(f"🛍️ Total Penjualan pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_penjualan_harian:,.0f}")
 
-colM, colP = st.columns(2)
-with colM:
-    st.info(f"💸 Total Modal pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_modal_harian:,.0f}")
-with colP:
-    st.success(f"🛍️ Total Penjualan pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_penjualan_harian:,.0f}")
-
 colA, colB = st.columns(2)
 with colA:
     show_modal = st.checkbox("📌 Tampilkan Ringkasan Modal")
