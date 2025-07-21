@@ -108,3 +108,17 @@ if not df_modal.empty and not df_penjualan.empty:
 
     fig = px.line(df_chart, x="tanggal", y="total", title=f"📊 Grafik Penjualan {mode}", markers=True)
     st.plotly_chart(fig, use_container_width=True)
+    # ─── Pie Chart Produk Terjual ─────────────────────
+    st.subheader("📊 Distribusi Penjualan per Produk")
+
+    pie_data = df_penjualan.groupby("produk")["total"].sum().reset_index().sort_values("total", ascending=False)
+    
+    pie_chart = px.pie(
+        pie_data,
+        names="produk",
+        values="total",
+        title="Proporsi Penjualan Berdasarkan Produk",
+        hole=0.4
+    )
+    st.plotly_chart(pie_chart, use_container_width=True)
+
