@@ -55,6 +55,14 @@ with st.form("form_penjualan"):
 df_modal = pd.DataFrame(supabase.table("modal_produksi").select("tanggal,bahan_baku,qty,harga_satuan,total").execute().data)
 df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, produk,qty,harga_jual,total").execute().data)
 
+
+# ─── Ringkasan Total ─────────────────────────────
+    st.subheader("💡 Ringkasan Keuangan")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🧾 Total Belanja", f"Rp {total_modal:,.0f}")
+    col2.metric("🛒 Total Penjualan", f"Rp {total_penjualan:,.0f}")
+    col3.metric("📈 Laba Bersih", f"Rp {laba_bersih:,.0f}")
+
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
 st.header("📦 Ringkasan Modal & Penjualan")
 
