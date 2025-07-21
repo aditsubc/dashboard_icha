@@ -57,6 +57,26 @@ df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, pr
 
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
 st.header("📦 Ringkasan Data")
+# ─── Ringkasan Berdasarkan Tanggal ────────────────────────
+st.markdown("---")
+st.subheader("📅 Ringkasan Berdasarkan Tanggal")
+
+# Filter tanggal
+tanggal_filter = st.date_input("Pilih Tanggal", datetime.today(), key="filter_tanggal")
+
+# Ringkasan Modal Berdasarkan Tanggal
+modal_harian = df_modal[df_modal["tanggal"] == pd.to_datetime(tanggal_filter)]
+total_modal_harian = modal_harian["total"].sum() if not modal_harian.empty else 0
+
+# Ringkasan Penjualan Berdasarkan Tanggal
+penjualan_harian = df_penjualan[df_penjualan["tanggal"] == pd.to_datetime(tanggal_filter)]
+total_penjualan_harian = penjualan_harian["total"].sum() if not penjualan_harian.empty else 0
+
+colM, colP = st.columns(2)
+with colM:
+    st.info(f"💸 Total Modal pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_modal_harian:,.0f}")
+with colP:
+    st.success(f"🛍️ Total Penjualan pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_penjualan_harian:,.0f}")
 
 colA, colB = st.columns(2)
 with colA:
