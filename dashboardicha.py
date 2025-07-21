@@ -58,9 +58,13 @@ with st.form("form_penjualan"):
 df_modal = pd.DataFrame(supabase.table("modal_produksi").select("*").execute().data)
 df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("*").execute().data)
 
-# ─── Ringkasan & Grafik ──────────────────────────────
+# ─── Ringkasan & Grafik Interaktif ───────────────────
 st.header("📈 Ringkasan Penjualan vs Modal")
+
 if not df_modal.empty and not df_penjualan.empty:
+    df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
+    df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"])
+
     total_modal = df_modal["total"].sum()
     total_pendapatan = df_penjualan["total"].sum()
     laba_bersih = total_pendapatan - total_modal
@@ -70,10 +74,27 @@ if not df_modal.empty and not df_penjualan.empty:
     col2.metric("Total Pendapatan", f"Rp {total_pendapatan:,.0f}")
     col3.metric("Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
-    st.subheader("Grafik Pendapatan Harian")
-    df_penjualan['tanggal'] = pd.to_datetime(df_penjualan['tanggal'])
-    daily = df_penjualan.groupby('tanggal').sum(numeric_only=True).reset_index()
-    st.plotly_chart(px.bar(daily, x="tanggal", y="total", title="Pendapatan Harian"))
+    # Dropdown untuk memilih periode
+    st.subheader("Grafik Interaktif Pendapatan & Profit")
+    pilihan = st.selectbox("Pilih Periode", ["Harian", "Mingguan", "Bulanan", "Tahunan"])
+
+    if pilihan == "Harian":
+        df = df_penjualan.groupby("tanggal").sum(numeric_only=True).reset_index()
+        judul = "Pendapatan Harian"
+    elif pilihan == "Mingguan":
+        df = df_penjualan.resample("W-Mon", on="tanggal").sum(numeric_only=True).reset_index()
+        judul = "Pendapatan Mingguan"
+    elif pilihan == "Bulanan":
+        df = df_penjualan.resample("M", on="tanggal").sum(numeric_only=True).reset_index()
+        judul = "Pendapatan Bulanan"
+    elif pilihan == "Tahunan":
+        df = df_penjualan.resample("Y", on="tanggal").sum(numeric_only=True).reset_index()
+        judul = "Pendapatan Tahunan"
+
+    fig = px.bar(df, x="tanggal", y="total", title=judul, labels={"total": "Total Penjualan"}, hover_data=["total"])
+    fig.update_traces(marker_color="royalblue", marker_line_color='rgb(8,48,107)', marker_line_width=1.5)
+    fig.update_layout(xaxis_title="Tanggal", yaxis_title="Total Penjualan")
+    st.plotly_chart(fig, use_container_width=True)
 
 # ─── Fungsi Export PDF ───────────────────────────────
 def export_pdf():
@@ -88,11 +109,11 @@ def export_pdf():
     pdf.ln(10)
     pdf.cell(200, 10, txt="Detail Modal:", ln=True)
     for _, row in df_modal.iterrows():
-        pdf.cell(200, 10, txt=f"{row['tanggal']} | {row['bahan_baku']} | Rp {row['total']:,.0f}", ln=True)
+        pdf.cell(200, 10, txt=f"{row['tanggal'].date()} | {row['bahan_baku']} | Rp {row['total']:,.0f}", ln=True)
     pdf.ln(10)
     pdf.cell(200, 10, txt="Detail Penjualan:", ln=True)
     for _, row in df_penjualan.iterrows():
-        pdf.cell(200, 10, txt=f"{row['tanggal']} | {row['produk']} | Rp {row['total']:,.0f}", ln=True)
+        pdf.cell(200, 10, txt=f"{row['tanggal'].date()} | {row['produk']} | Rp {row['total']:,.0f}", ln=True)
     buffer = BytesIO()
     pdf.output(buffer)
     return buffer.getvalue()
