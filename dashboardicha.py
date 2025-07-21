@@ -1,117 +1,124 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-from fpdf import FPDF
-from supabase import create_client, Client
 from datetime import datetime
+from supabase import create_client, Client
+import plotly.express as px
 
-# --- CONFIG ---
-st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
-st.title("📊 Dashboard Penjualan & Modal Produksi")
-
-# --- SUPABASE SETUP ---
+# ─── Konfigurasi Supabase ────────────────────────────
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- DATA FETCHING ---
-@st.cache_data
-def fetch_data():
-    data_modal = supabase.table("modal_produksi").select("*").execute().data
-    data_penjualan = supabase.table("data_penjualan").select("*").execute().data
-    return pd.DataFrame(data_modal), pd.DataFrame(data_penjualan)
+# ─── Konfigurasi Streamlit ───────────────────────────
+st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
+st.title("📊 Dashboard Penjualan & Perhitungan Modal")
 
-df_modal, df_penjualan = fetch_data()
+# ─── Input Modal Produksi ────────────────────────────
+st.header("Input Modal Produksi")
+with st.form("form_modal"):
+    tanggal = st.date_input("Tanggal", datetime.today())
+    bahan_baku = st.text_input("Nama Bahan Baku")
+    qty = st.number_input("Qty", min_value=0, step=1)
+    harga_satuan = st.number_input("Harga Satuan", min_value=0)
+    total = qty * harga_satuan
+    submitted = st.form_submit_button("Simpan")
+    if submitted:
+        supabase.table("modal_produksi").insert({
+            "tanggal": str(tanggal),
+            "bahan_baku": bahan_baku,
+            "qty": qty,
+            "harga_satuan": harga_satuan,
+            "total": total
+        }).execute()
+        st.success("✅ Data modal berhasil disimpan!")
 
-# --- RINGKASAN KEUANGAN ---
-st.subheader("💰 Ringkasan Keuangan")
-total_belanja = df_modal["total"].sum() if not df_modal.empty else 0
-total_penjualan = df_penjualan["total"].sum() if not df_penjualan.empty else 0
-laba = total_penjualan - total_belanja
+# ─── Input Penjualan ─────────────────────────────────
+st.header("Input Penjualan")
+with st.form("form_penjualan"):
+    tanggal_pj = st.date_input("Tanggal Penjualan", datetime.today(), key="pj")
+    produk = st.text_input("Nama Produk")
+    qty_pj = st.number_input("Jumlah Terjual", min_value=0, step=1)
+    harga_jual = st.number_input("Harga Jual per Item", min_value=0)
+    total_pj = qty_pj * harga_jual
+    submitted2 = st.form_submit_button("Simpan Penjualan")
+    if submitted2:
+        supabase.table("data_penjualan").insert({
+            "tanggal": str(tanggal_pj),
+            "produk": produk,
+            "qty": qty_pj,
+            "harga_jual": harga_jual,
+            "total": total_pj
+        }).execute()
+        st.success("✅ Data penjualan berhasil disimpan!")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Belanja (Modal)", f"Rp {total_belanja:,.0f}")
-col2.metric("Total Penjualan", f"Rp {total_penjualan:,.0f}")
-col3.metric("Laba Kotor", f"Rp {laba:,.0f}")
+# ─── Ambil Data dari Supabase ────────────────────────
+df_modal = pd.DataFrame(supabase.table("modal_produksi").select("tanggal,bahan_baku,qty,harga_satuan,total").execute().data)
+df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, produk,qty,harga_jual,total").execute().data)
 
-# --- GRAFIK GARIS PERTUMBUHAN PENJUALAN ---
-st.markdown("---")
-st.subheader("📈 Grafik Garis Pertumbuhan Penjualan")
+# ─── Dropdown Ringkasan Modal & Penjualan ────────────
+st.header("📦 Ringkasan Data")
 
-if not df_penjualan.empty:
+colA, colB = st.columns(2)
+with colA:
+    show_modal = st.checkbox("📌 Tampilkan Ringkasan Modal")
+    if show_modal and not df_modal.empty:
+        st.dataframe(df_modal.sort_values("tanggal", ascending=False), use_container_width=True)
+
+with colB:
+    show_penjualan = st.checkbox("🛒 Tampilkan Ringkasan Penjualan")
+    if show_penjualan and not df_penjualan.empty:
+        st.dataframe(df_penjualan.sort_values("tanggal", ascending=False), use_container_width=True)
+
+# ─── Ringkasan & Grafik Interaktif ───────────────────
+st.header("📈 Grafik & Ringkasan Profit")
+
+if not df_modal.empty and not df_penjualan.empty:
     df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"])
-    df_penjualan_sorted = df_penjualan.sort_values("tanggal")
-    garis = df_penjualan_sorted.groupby("tanggal")["total"].sum().reset_index()
-    fig_line = px.line(garis, x="tanggal", y="total", markers=True, title="Tren Penjualan Harian")
-    st.plotly_chart(fig_line, use_container_width=True)
-else:
-    st.info("Belum ada data penjualan.")
+    df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
 
-# --- PIE CHART PRODUK TERJUAL ---
-st.subheader("🥧 Pie Chart Penjualan per Produk")
-if not df_penjualan.empty:
-    pie_data = df_penjualan.groupby("produk")["total"].sum().reset_index()
-    fig_pie = px.pie(pie_data, names="produk", values="total", title="Distribusi Penjualan Produk")
-    st.plotly_chart(fig_pie, use_container_width=True)
-else:
-    st.info("Belum ada data penjualan.")
+    total_modal = df_modal["total"].sum()
+    total_penjualan = df_penjualan["total"].sum()
+    laba_bersih = total_penjualan - total_modal
 
-# --- RINGKASAN BERDASARKAN TANGGAL ---
-st.markdown("---")
-st.subheader("📆 Ringkasan Harian")
-col1, col2 = st.columns(2)
+    # ─── Ringkasan Total ─────────────────────────────
+    st.subheader("💡 Ringkasan Keuangan")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🧾 Total Belanja", f"Rp {total_modal:,.0f}")
+    col2.metric("🛒 Total Penjualan", f"Rp {total_penjualan:,.0f}")
+    col3.metric("📈 Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
-with col1:
-    st.markdown("### 📦 Modal Produksi Harian")
-    if not df_modal.empty:
-        df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
-        ringkasan_modal = df_modal.groupby(df_modal["tanggal"].dt.date)["total"].sum().reset_index()
-        ringkasan_modal.columns = ["Tanggal", "Total Modal"]
-        st.dataframe(ringkasan_modal, use_container_width=True)
-    else:
-        st.info("Belum ada data modal.")
+    # ─── Grafik Interaktif ──────────────────────────
+    st.subheader("📅 Pilih Interval Grafik")
+    mode = st.selectbox("Tampilkan Grafik Berdasarkan:", ["Harian", "Mingguan", "Bulanan", "Tahunan"])
 
-with col2:
-    st.markdown("### 🛒 Penjualan Harian")
-    if not df_penjualan.empty:
-        df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"])
-        ringkasan_penjualan = df_penjualan.groupby(df_penjualan["tanggal"].dt.date)["total"].sum().reset_index()
-        ringkasan_penjualan.columns = ["Tanggal", "Total Penjualan"]
-        st.dataframe(ringkasan_penjualan, use_container_width=True)
-    else:
-        st.info("Belum ada data penjualan.")
+    if mode == "Harian":
+        df_chart = df_penjualan.groupby('tanggal').sum(numeric_only=True).reset_index()
+    elif mode == "Mingguan":
+        df_chart = df_penjualan.copy()
+        df_chart["minggu"] = df_chart["tanggal"].dt.to_period("W").apply(lambda r: r.start_time)
+        df_chart = df_chart.groupby("minggu").sum(numeric_only=True).reset_index().rename(columns={"minggu": "tanggal"})
+    elif mode == "Bulanan":
+        df_chart = df_penjualan.copy()
+        df_chart["bulan"] = df_chart["tanggal"].dt.to_period("M").dt.to_timestamp()
+        df_chart = df_chart.groupby("bulan").sum(numeric_only=True).reset_index().rename(columns={"bulan": "tanggal"})
+    else:  # Tahunan
+        df_chart = df_penjualan.copy()
+        df_chart["tahun"] = df_chart["tanggal"].dt.year
+        df_chart = df_chart.groupby("tahun").sum(numeric_only=True).reset_index().rename(columns={"tahun": "tanggal"})
 
-# --- EXPORT PDF ---
-class PDF(FPDF):
-    def header(self):
-        self.set_font("Arial", "B", 12)
-        self.cell(200, 10, "Laporan Penjualan & Modal", ln=True, align="C")
-        self.ln(10)
+    fig = px.line(df_chart, x="tanggal", y="total", title=f"📊 Grafik Penjualan {mode}", markers=True)
+    st.plotly_chart(fig, use_container_width=True)
+    # ─── Pie Chart Produk Terjual ─────────────────────
+    st.subheader("📊 Distribusi Penjualan per Produk")
 
-def export_to_pdf():
-    pdf = PDF()
-    pdf.add_page()
+    pie_data = df_penjualan.groupby("produk")["total"].sum().reset_index().sort_values("total", ascending=False)
+    
+    pie_chart = px.pie(
+        pie_data,
+        names="produk",
+        values="total",
+        title="Proporsi Penjualan Berdasarkan Produk",
+        hole=0.4
+    )
+    st.plotly_chart(pie_chart, use_container_width=True)
 
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, f"Total Modal: Rp {total_belanja:,.0f}", ln=True)
-    pdf.cell(200, 10, f"Total Penjualan: Rp {total_penjualan:,.0f}", ln=True)
-    pdf.cell(200, 10, f"Laba Kotor: Rp {laba:,.0f}", ln=True)
-
-    pdf.ln(10)
-    pdf.cell(200, 10, "Ringkasan Modal Harian:", ln=True)
-    for idx, row in ringkasan_modal.iterrows():
-        pdf.cell(200, 8, f"{row['Tanggal']}: Rp {row['Total Modal']:,.0f}", ln=True)
-
-    pdf.ln(10)
-    pdf.cell(200, 10, "Ringkasan Penjualan Harian:", ln=True)
-    for idx, row in ringkasan_penjualan.iterrows():
-        pdf.cell(200, 8, f"{row['Tanggal']}: Rp {row['Total Penjualan']:,.0f}", ln=True)
-
-    filename = f"laporan_penjualan_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    pdf.output(filename)
-    return filename
-
-if st.button("📄 Download Laporan PDF"):
-    file_path = export_to_pdf()
-    with open(file_path, "rb") as f:
-        st.download_button(label="Download PDF", data=f, file_name=file_path, mime="application/pdf")
