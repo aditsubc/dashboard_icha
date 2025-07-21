@@ -56,7 +56,7 @@ df_modal = pd.DataFrame(supabase.table("modal_produksi").select("tanggal,bahan_b
 df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, produk,qty,harga_jual,total").execute().data)
 
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
-st.header("📦 Ringkasan Penjualan")
+st.header("📦 Ringkasan Modal & Penjualan")
 
 colA, colB = st.columns(2)
 with colA:
