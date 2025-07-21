@@ -10,8 +10,8 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ─── Konfigurasi Streamlit ───────────────────────────
-st.set_page_config(page_title="Dashboard Modal dan Penjualan", layout="wide")
-st.title("📊 Dashboard Mamacha")
+st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
+st.title("📊 Dashboard Penjualan & Perhitungan Modal")
 
 # ─── Input Modal Produksi ────────────────────────────
 st.header("Input Modal Produksi")
@@ -52,12 +52,11 @@ with st.form("form_penjualan"):
         st.success("✅ Data penjualan berhasil disimpan!")
 
 # ─── Ambil Data dari Supabase ────────────────────────
-df_modal = pd.DataFrame(supabase.table("modal_produksi").select("tanggal,bahan_baku,qty,harga_satuan,total").execute().data)
-df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, produk,qty,harga_jual,total").execute().data)
-
+df_modal = pd.DataFrame(supabase.table("modal_produksi").select("*").execute().data)
+df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("*").execute().data)
 
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
-st.header("📦 Ringkasan Modal & Penjualan")
+st.header("📦 Ringkasan Data")
 
 colA, colB = st.columns(2)
 with colA:
@@ -78,15 +77,18 @@ if not df_modal.empty and not df_penjualan.empty:
     df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
 
     total_modal = df_modal["total"].sum()
-    total_pendapatan = df_penjualan["total"].sum()
-    laba_bersih = total_pendapatan - total_modal
+    total_penjualan = df_penjualan["total"].sum()
+    laba_bersih = total_penjualan - total_modal
 
+    # ─── Ringkasan Total ─────────────────────────────
+    st.subheader("💡 Ringkasan Keuangan")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Modal", f"Rp {total_modal:,.0f}")
-    col2.metric("Total Pendapatan", f"Rp {total_pendapatan:,.0f}")
-    col3.metric("Laba Bersih", f"Rp {laba_bersih:,.0f}")
+    col1.metric("🧾 Total Belanja", f"Rp {total_modal:,.0f}")
+    col2.metric("🛒 Total Penjualan", f"Rp {total_penjualan:,.0f}")
+    col3.metric("📈 Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
-    st.subheader("Pilih Interval Grafik")
+    # ─── Grafik Interaktif ──────────────────────────
+    st.subheader("📅 Pilih Interval Grafik")
     mode = st.selectbox("Tampilkan Grafik Berdasarkan:", ["Harian", "Mingguan", "Bulanan", "Tahunan"])
 
     if mode == "Harian":
@@ -104,5 +106,5 @@ if not df_modal.empty and not df_penjualan.empty:
         df_chart["tahun"] = df_chart["tanggal"].dt.year
         df_chart = df_chart.groupby("tahun").sum(numeric_only=True).reset_index().rename(columns={"tahun": "tanggal"})
 
-    fig = px.line(df_chart, x="tanggal", y="total", title=f"Pendapatan {mode}", markers=True)
+    fig = px.line(df_chart, x="tanggal", y="total", title=f"📊 Grafik Penjualan {mode}", markers=True)
     st.plotly_chart(fig, use_container_width=True)
