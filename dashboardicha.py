@@ -92,3 +92,17 @@ class PDF(FPDF):
         self.cell(100, 10, f"Total Modal: Rp {total_belanja:,.0f}", ln=True)
         self.cell(100, 10, f"Total Penjualan: Rp {total_penjualan:,.0f}", ln=True)
         self.cell(100, 10, f"Laba Bersih: Rp {total_penjualan - total_belanja:,.0f}", ln=True)
+
+if st.button("📄 Unduh PDF"):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.laporan_ringkasan()
+    
+    buffer = io.BytesIO()
+    pdf.output(buffer)
+    st.download_button(
+        label="📄 Download PDF",
+        data=buffer.getvalue(),
+        file_name="laporan_keuangan.pdf",
+        mime="application/pdf"
+    )
