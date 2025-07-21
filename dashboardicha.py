@@ -58,10 +58,10 @@ df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, pr
 
 # ─── Ringkasan Total ─────────────────────────────
 st.subheader("💡 Ringkasan Keuangan")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🧾 Total Belanja", f"Rp {total_modal:,.0f}")
-    col2.metric("🛒 Total Penjualan", f"Rp {total_penjualan:,.0f}")
-    col3.metric("📈 Laba Bersih", f"Rp {laba_bersih:,.0f}")
+col1, col2, col3 = st.columns(3)
+col1.metric("🧾 Total Belanja", f"Rp {total_modal:,.0f}")
+col2.metric("🛒 Total Penjualan", f"Rp {total_penjualan:,.0f}")
+col3.metric("📈 Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
 st.header("📦 Ringkasan Modal & Penjualan")
