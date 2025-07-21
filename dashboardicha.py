@@ -8,8 +8,8 @@ from fpdf import FPDF
 from io import BytesIO
 import base64
 
-SUPABASE_URL = st.secrets["https://nfopaajzxdiorzsdfkjo.supabase.co"]
-SUPABASE_KEY = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mb3BhYWp6eGRpb3J6c2Rma2pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5MDAyODAsImV4cCI6MjA2NjQ3NjI4MH0.Klh9tywG3xA-1cl5jtyFliKwD989Wqb_ZvtyJ8eG2Vc"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
