@@ -55,8 +55,8 @@ with st.form("form_penjualan"):
         st.success("✅ Data penjualan berhasil disimpan!")
 
 # ─── Ambil Data dari Supabase ────────────────────────
-df_modal = pd.DataFrame(supabase.table("modal_produksi").select("*").execute().data)
-df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("*").execute().data)
+df_modal = pd.DataFrame(supabase.table("modal_produksi").select("tanggal,bahan_baku,qty,harga_satuan,total").execute().data)
+df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, produk,qty,harga_jual,total").execute().data)
 
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
 st.header("📦 Ringkasan Data")
