@@ -55,19 +55,20 @@ with st.form("form_penjualan"):
 df_modal = pd.DataFrame(supabase.table("modal_produksi").select("tanggal,bahan_baku,qty,harga_satuan,total").execute().data)
 df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("tanggal, produk,qty,harga_jual,total").execute().data)
 
+# Konversi tanggal menjadi datetime
+df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"]).dt.date
+df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"]).dt.date
+
 # ─── Dropdown Ringkasan Modal & Penjualan ────────────
 st.header("📦 Ringkasan Data")
-# ─── Ringkasan Berdasarkan Tanggal ────────────────────────
 st.markdown("---")
 st.subheader("📅 Ringkasan Harian")
 tanggal_filter = st.date_input("Pilih Tanggal", value=datetime.now().date())
 
-# Modal Harian
+# Filter Harian
 modal_harian = df_modal[df_modal["tanggal"] == tanggal_filter]
-total_modal_harian = modal_harian["total"].sum()
-
-# Penjualan Harian
 penjualan_harian = df_penjualan[df_penjualan["tanggal"] == tanggal_filter]
+total_modal_harian = modal_harian["total"].sum()
 total_penjualan_harian = penjualan_harian["total"].sum()
 
 st.info(f"💸 Total Modal pada {tanggal_filter.strftime('%d/%m/%Y')}: Rp {total_modal_harian:,.0f}")
@@ -84,25 +85,24 @@ with colB:
     if show_penjualan and not df_penjualan.empty:
         st.dataframe(df_penjualan.sort_values("tanggal", ascending=False), use_container_width=True)
 
-# ─── Ringkasan & Grafik Interaktif ───────────────────
+# ─── Grafik dan Ringkasan Laba ──────────────────────
 st.header("📈 Grafik & Ringkasan Profit")
 
 if not df_modal.empty and not df_penjualan.empty:
-    df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"])
+    # Konversi ulang ke datetime untuk agregasi mingguan/bulanan
     df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
+    df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"])
 
     total_modal = df_modal["total"].sum()
     total_penjualan = df_penjualan["total"].sum()
     laba_bersih = total_penjualan - total_modal
 
-    # ─── Ringkasan Total ─────────────────────────────
     st.subheader("💡 Ringkasan Keuangan")
     col1, col2, col3 = st.columns(3)
     col1.metric("🧾 Total Belanja", f"Rp {total_modal:,.0f}")
     col2.metric("🛒 Total Penjualan", f"Rp {total_penjualan:,.0f}")
     col3.metric("📈 Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
-    # ─── Grafik Interaktif ──────────────────────────
     st.subheader("📅 Pilih Interval Grafik")
     mode = st.selectbox("Tampilkan Grafik Berdasarkan:", ["Harian", "Mingguan", "Bulanan", "Tahunan"])
 
@@ -123,17 +123,9 @@ if not df_modal.empty and not df_penjualan.empty:
 
     fig = px.line(df_chart, x="tanggal", y="total", title=f"📊 Grafik Penjualan {mode}", markers=True)
     st.plotly_chart(fig, use_container_width=True)
+
     # ─── Pie Chart Produk Terjual ─────────────────────
     st.subheader("📊 Distribusi Penjualan per Produk")
-
     pie_data = df_penjualan.groupby("produk")["total"].sum().reset_index().sort_values("total", ascending=False)
-    
-    pie_chart = px.pie(
-        pie_data,
-        names="produk",
-        values="total",
-        title="Proporsi Penjualan Berdasarkan Produk",
-        hole=0.4
-    )
+    pie_chart = px.pie(pie_data, names="produk", values="total", title="Proporsi Penjualan Berdasarkan Produk", hole=0.4)
     st.plotly_chart(pie_chart, use_container_width=True)
-
