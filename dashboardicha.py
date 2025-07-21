@@ -7,16 +7,16 @@ from fpdf import FPDF
 from io import BytesIO
 import base64
 
-# ─── Konfigurasi Supabase ─────────────────────────────────────────────
+# ─── Konfigurasi Supabase ────────────────────────────
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ─── Konfigurasi Streamlit ────────────────────────────────────────────
+# ─── Konfigurasi Streamlit ───────────────────────────
 st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
 st.title("📊 Dashboard Penjualan & Perhitungan Modal")
 
-# ─── Input Modal Produksi ─────────────────────────────────────────────
+# ─── Input Modal Produksi ────────────────────────────
 st.header("Input Modal Produksi")
 with st.form("form_modal"):
     tanggal = st.date_input("Tanggal", datetime.today())
@@ -35,34 +35,34 @@ with st.form("form_modal"):
         }).execute()
         st.success("✅ Data modal berhasil disimpan!")
 
-# ─── Input Penjualan ──────────────────────────────────────────────────
+# ─── Input Penjualan ─────────────────────────────────
 st.header("Input Penjualan")
 with st.form("form_penjualan"):
     tanggal_pj = st.date_input("Tanggal Penjualan", datetime.today(), key="pj")
     produk = st.text_input("Nama Produk")
-    jumlah = st.number_input("Jumlah Terjual", min_value=0, step=1)
+    qty_pj = st.number_input("Jumlah Terjual", min_value=0, step=1)
     harga_jual = st.number_input("Harga Jual per Item", min_value=0)
-    pendapatan = jumlah * harga_jual
+    total_pj = qty_pj * harga_jual
     submitted2 = st.form_submit_button("Simpan Penjualan")
     if submitted2:
         supabase.table("data_penjualan").insert({
             "tanggal": str(tanggal_pj),
             "produk": produk,
-            "jumlah": jumlah,
+            "qty": qty_pj,
             "harga_jual": harga_jual,
-            "pendapatan": pendapatan
+            "total": total_pj
         }).execute()
         st.success("✅ Data penjualan berhasil disimpan!")
 
-# ─── Ambil Data dari Supabase ─────────────────────────────────────────
+# ─── Ambil Data dari Supabase ────────────────────────
 df_modal = pd.DataFrame(supabase.table("modal_produksi").select("*").execute().data)
 df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("*").execute().data)
 
-# ─── Ringkasan & Grafik ───────────────────────────────────────────────
+# ─── Ringkasan & Grafik ──────────────────────────────
 st.header("📈 Ringkasan Penjualan vs Modal")
 if not df_modal.empty and not df_penjualan.empty:
     total_modal = df_modal["total"].sum()
-    total_pendapatan = df_penjualan["pendapatan"].sum()
+    total_pendapatan = df_penjualan["total"].sum()
     laba_bersih = total_pendapatan - total_modal
 
     col1, col2, col3 = st.columns(3)
@@ -70,12 +70,12 @@ if not df_modal.empty and not df_penjualan.empty:
     col2.metric("Total Pendapatan", f"Rp {total_pendapatan:,.0f}")
     col3.metric("Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
-    st.subheader("Grafik Penjualan Harian")
+    st.subheader("Grafik Pendapatan Harian")
     df_penjualan['tanggal'] = pd.to_datetime(df_penjualan['tanggal'])
     daily = df_penjualan.groupby('tanggal').sum(numeric_only=True).reset_index()
-    st.plotly_chart(px.bar(daily, x="tanggal", y="pendapatan", title="Pendapatan Harian"))
+    st.plotly_chart(px.bar(daily, x="tanggal", y="total", title="Pendapatan Harian"))
 
-# ─── Fungsi Export PDF ────────────────────────────────────────────────
+# ─── Fungsi Export PDF ───────────────────────────────
 def export_pdf():
     pdf = FPDF()
     pdf.add_page()
@@ -92,12 +92,12 @@ def export_pdf():
     pdf.ln(10)
     pdf.cell(200, 10, txt="Detail Penjualan:", ln=True)
     for _, row in df_penjualan.iterrows():
-        pdf.cell(200, 10, txt=f"{row['tanggal']} | {row['produk']} | Rp {row['pendapatan']:,.0f}", ln=True)
+        pdf.cell(200, 10, txt=f"{row['tanggal']} | {row['produk']} | Rp {row['total']:,.0f}", ln=True)
     buffer = BytesIO()
     pdf.output(buffer)
     return buffer.getvalue()
 
-# ─── Tombol Unduh PDF ─────────────────────────────────────────────────
+# ─── Tombol Unduh PDF ────────────────────────────────
 if not df_modal.empty and not df_penjualan.empty:
     if st.button("📄 Download Laporan PDF"):
         pdf_bytes = export_pdf()
