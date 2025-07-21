@@ -10,7 +10,7 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ─── Konfigurasi Streamlit ───────────────────────────
-st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
+st.set_page_config(page_title="Dashboard Modal dan Penjualan", layout="wide")
 st.title("📊 Dashboard Mamacha")
 
 # ─── Input Modal Produksi ────────────────────────────
