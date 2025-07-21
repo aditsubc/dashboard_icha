@@ -58,12 +58,26 @@ with st.form("form_penjualan"):
 df_modal = pd.DataFrame(supabase.table("modal_produksi").select("*").execute().data)
 df_penjualan = pd.DataFrame(supabase.table("data_penjualan").select("*").execute().data)
 
+# ─── Dropdown Ringkasan Modal & Penjualan ────────────
+st.header("📦 Ringkasan Data")
+
+colA, colB = st.columns(2)
+with colA:
+    show_modal = st.checkbox("📌 Tampilkan Ringkasan Modal")
+    if show_modal and not df_modal.empty:
+        st.dataframe(df_modal.sort_values("tanggal", ascending=False), use_container_width=True)
+
+with colB:
+    show_penjualan = st.checkbox("🛒 Tampilkan Ringkasan Penjualan")
+    if show_penjualan and not df_penjualan.empty:
+        st.dataframe(df_penjualan.sort_values("tanggal", ascending=False), use_container_width=True)
+
 # ─── Ringkasan & Grafik Interaktif ───────────────────
-st.header("📈 Ringkasan Penjualan vs Modal")
+st.header("📈 Grafik & Ringkasan Profit")
 
 if not df_modal.empty and not df_penjualan.empty:
-    df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
     df_penjualan["tanggal"] = pd.to_datetime(df_penjualan["tanggal"])
+    df_modal["tanggal"] = pd.to_datetime(df_modal["tanggal"])
 
     total_modal = df_modal["total"].sum()
     total_pendapatan = df_penjualan["total"].sum()
@@ -74,26 +88,25 @@ if not df_modal.empty and not df_penjualan.empty:
     col2.metric("Total Pendapatan", f"Rp {total_pendapatan:,.0f}")
     col3.metric("Laba Bersih", f"Rp {laba_bersih:,.0f}")
 
-    # Dropdown untuk memilih periode
-    st.subheader("Grafik Interaktif Pendapatan & Profit")
-    pilihan = st.selectbox("Pilih Periode", ["Harian", "Mingguan", "Bulanan", "Tahunan"])
+    st.subheader("Pilih Interval Grafik")
+    mode = st.selectbox("Tampilkan Grafik Berdasarkan:", ["Harian", "Mingguan", "Bulanan", "Tahunan"])
 
-    if pilihan == "Harian":
-        df = df_penjualan.groupby("tanggal").sum(numeric_only=True).reset_index()
-        judul = "Pendapatan Harian"
-    elif pilihan == "Mingguan":
-        df = df_penjualan.resample("W-Mon", on="tanggal").sum(numeric_only=True).reset_index()
-        judul = "Pendapatan Mingguan"
-    elif pilihan == "Bulanan":
-        df = df_penjualan.resample("M", on="tanggal").sum(numeric_only=True).reset_index()
-        judul = "Pendapatan Bulanan"
-    elif pilihan == "Tahunan":
-        df = df_penjualan.resample("Y", on="tanggal").sum(numeric_only=True).reset_index()
-        judul = "Pendapatan Tahunan"
+    if mode == "Harian":
+        df_chart = df_penjualan.groupby('tanggal').sum(numeric_only=True).reset_index()
+    elif mode == "Mingguan":
+        df_chart = df_penjualan.copy()
+        df_chart["minggu"] = df_chart["tanggal"].dt.to_period("W").apply(lambda r: r.start_time)
+        df_chart = df_chart.groupby("minggu").sum(numeric_only=True).reset_index().rename(columns={"minggu": "tanggal"})
+    elif mode == "Bulanan":
+        df_chart = df_penjualan.copy()
+        df_chart["bulan"] = df_chart["tanggal"].dt.to_period("M").dt.to_timestamp()
+        df_chart = df_chart.groupby("bulan").sum(numeric_only=True).reset_index().rename(columns={"bulan": "tanggal"})
+    else:  # Tahunan
+        df_chart = df_penjualan.copy()
+        df_chart["tahun"] = df_chart["tanggal"].dt.year
+        df_chart = df_chart.groupby("tahun").sum(numeric_only=True).reset_index().rename(columns={"tahun": "tanggal"})
 
-    fig = px.bar(df, x="tanggal", y="total", title=judul, labels={"total": "Total Penjualan"}, hover_data=["total"])
-    fig.update_traces(marker_color="royalblue", marker_line_color='rgb(8,48,107)', marker_line_width=1.5)
-    fig.update_layout(xaxis_title="Tanggal", yaxis_title="Total Penjualan")
+    fig = px.bar(df_chart, x="tanggal", y="total", title=f"Pendapatan {mode}")
     st.plotly_chart(fig, use_container_width=True)
 
 # ─── Fungsi Export PDF ───────────────────────────────
@@ -109,11 +122,11 @@ def export_pdf():
     pdf.ln(10)
     pdf.cell(200, 10, txt="Detail Modal:", ln=True)
     for _, row in df_modal.iterrows():
-        pdf.cell(200, 10, txt=f"{row['tanggal'].date()} | {row['bahan_baku']} | Rp {row['total']:,.0f}", ln=True)
+        pdf.cell(200, 10, txt=f"{row['tanggal']} | {row['bahan_baku']} | Rp {row['total']:,.0f}", ln=True)
     pdf.ln(10)
     pdf.cell(200, 10, txt="Detail Penjualan:", ln=True)
     for _, row in df_penjualan.iterrows():
-        pdf.cell(200, 10, txt=f"{row['tanggal'].date()} | {row['produk']} | Rp {row['total']:,.0f}", ln=True)
+        pdf.cell(200, 10, txt=f"{row['tanggal']} | {row['produk']} | Rp {row['total']:,.0f}", ln=True)
     buffer = BytesIO()
     pdf.output(buffer)
     return buffer.getvalue()
