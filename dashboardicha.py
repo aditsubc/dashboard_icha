@@ -10,11 +10,11 @@ SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ─── Konfigurasi Streamlit ───────────────────────────
-st.set_page_config(page_title="Dashboard Penjualan", layout="wide")
-st.title("📊 Dashboard Penjualan & Perhitungan Modal")
+st.set_page_config(page_title="Dashboard Mamacha", layout="wide")
+st.title("📊 Dashboard Penjualan & Modal")
 
-# ─── Input Modal Produksi ────────────────────────────
-st.header("Input Modal Produksi")
+# ─── Modal Produksi ────────────────────────────
+st.header("Modal Produksi")
 with st.form("form_modal"):
     tanggal = st.date_input("Tanggal", datetime.today())
     bahan_baku = st.text_input("Nama Bahan Baku")
